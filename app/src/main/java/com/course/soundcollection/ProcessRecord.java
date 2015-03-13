@@ -183,6 +183,7 @@ public class ProcessRecord{
     /**
      * do FFT for musicData, save into fftData
      */
+    int commit;
     public void FFT(){
         int N = musicData.length;
 
