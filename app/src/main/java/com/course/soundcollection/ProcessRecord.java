@@ -11,7 +11,6 @@ import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Environment;
-import android.os.Message;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -27,8 +26,63 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.logging.Handler;
+//复数的加减乘运算
+
+class Complex {
+    public double real;
+    public double image;
+
+    //三个构造函数
+    public Complex() {
+        // TODO Auto-generated constructor stub
+        this.real = 0;
+        this.image = 0;
+    }
+
+    public Complex(double real, double image){
+        this.real = real;
+        this.image = image;
+    }
+
+    public Complex(int real, int image) {
+        Integer integer = real;
+        this.real = integer.floatValue();
+        integer = image;
+        this.image = integer.floatValue();
+    }
+
+    public Complex(double real) {
+        this.real = real;
+        this.image = 0;
+    }
+    //乘法
+    public Complex cc(Complex complex) {
+        Complex tmpComplex = new Complex();
+        tmpComplex.real = this.real * complex.real - this.image * complex.image;
+        tmpComplex.image = this.real * complex.image + this.image * complex.real;
+        return tmpComplex;
+    }
+    //加法
+    public Complex sum(Complex complex) {
+        Complex tmpComplex = new Complex();
+        tmpComplex.real = this.real + complex.real;
+        tmpComplex.image = this.image + complex.image;
+        return tmpComplex;
+    }
+    //减法
+    public Complex cut(Complex complex) {
+        Complex tmpComplex = new Complex();
+        tmpComplex.real = this.real - complex.real;
+        tmpComplex.image = this.image - complex.image;
+        return tmpComplex;
+    }
+    //获得一个复数的值
+    public int getIntValue(){
+        int ret = 0;
+        ret = (int) Math.round(Math.sqrt(this.real*this.real + this.image*this.image));
+        return ret;
+    }
+}
 
 public class ProcessRecord{
 
@@ -38,8 +92,10 @@ public class ProcessRecord{
     private Canvas canvasTime, canvasFreq;
     public ArrayList<short[]> recordBuffer = new ArrayList<>();
     drawThread dThread = new drawThread();
-    public static short[] musicData;
-    public static short[] fftData;
+    public static short[] musicData0;
+    public static int[] musicData;
+    public static int[] fftData;
+    int rateX = 15;
 //initialization
     public void setSfv(SurfaceView _sfvTime,SurfaceView _sfvFreq){
         sfvTime = _sfvTime;
@@ -74,17 +130,30 @@ public class ProcessRecord{
                     AudioTrack.MODE_STREAM);
             //order workable
             audioTrack.write(music, 0, musicLength);
-            musicData = music;
-            FFT();//void FFT, transform musicData to fftData in N points;
+            musicData0 = music;
+            audioTrack.play();
+
+
+
+            //make a sample at rateX , save it to musicData
+            //do FFT at sampled array, save it to fftData
+            sample(  );
 
             dThread.start();
-            audioTrack.play();
             stopPlay();
         } catch (Throwable t) {
             Log.e("AudioTrack","Playback Failed");
         }
     }
 
+    public void sample(){
+        int sampled[] = new int[musicData0.length/rateX+2];
+        for( int i=0;i<musicData0.length;i+=rateX ){
+            sampled[i/rateX] = (int)musicData0[i];
+        }
+        musicData = sampled;
+        FFT();
+    }
     public void stopPlay(){
         audioTrack.stop() ;/*
         Message msg = MainActivity.stopHandler.obtainMessage();
@@ -148,17 +217,27 @@ public class ProcessRecord{
         @Override
         public void run() {
             //draw original data : Time field;
-            drawUnit(musicData,sfvTime);
+            drawUnitTime(musicData,sfvTime);
             //draw FFT data: Frequency field;
 
-            drawUnit(fftData,sfvFreq);
+            drawUnitFreq(fftData,sfvFreq);
 
 
         }
 
-        public void drawUnit( short[] piece, SurfaceView surfaceView ){
+        public int getRange( int[] num ){
+            int min = 99999, max = -99999;
+            for( int i=0;i<num.length;i++ ){
+                if( min > num[i] ) min = num[i];
+                if( max < num[i] ) max = num[i];
+            }
+            return max-min;
+        }
+
+        public void drawUnitTime( int[] piece, SurfaceView surfaceView ){
+            int range = getRange( piece )/10;
             Canvas canvas = surfaceView.getHolder().lockCanvas(new Rect(0,0,piece.length,surfaceView.getHeight()));
-            int paddingBottom = canvas.getHeight()/2;
+            int paddingBottom = (int) (canvas.getHeight()/1.5);
             int paddingLeft = 10;
             Paint paint = new Paint();
             paint.setStrokeWidth(2);
@@ -166,29 +245,129 @@ public class ProcessRecord{
             paint.setColor(Color.GREEN);
             int canvasWid = canvas.getWidth();
             int canvasHeight = canvas.getHeight();
-            int rateX = 20;
 
-            float yScale = (float) 0.025;
-            float xScale = (float) 0.030;
+            float yScale = (float) canvas.getHeight()/range;
+            float xScale = (float) 0.130;
 
-            for (int i = 0; i < piece.length; i += rateX) {
-                canvas.drawLine(paddingLeft + xScale * i, paddingBottom, paddingLeft + xScale * i, paddingBottom - piece[i] * yScale, paint);
+            for (int i = 0; i < piece.length; i ++) {
+                canvas.drawLine(paddingLeft + xScale * i * rateX/2, paddingBottom, paddingLeft + xScale * i * rateX/2, paddingBottom - piece[i] * yScale, paint);
             }
             surfaceView.getHolder().unlockCanvasAndPost(canvas);
         }
 
+        public void drawUnitFreq( int[] piece, SurfaceView surfaceView ){
+            int range = getRange( piece );
+            Canvas canvas = surfaceView.getHolder().lockCanvas(new Rect(0,0,piece.length,surfaceView.getHeight()));
+            int paddingBottom = (int) (canvas.getHeight()/1.3);
+            int paddingLeft = 10;
+            Paint paint = new Paint();
+            paint.setStrokeWidth(2);
+            paint.setAntiAlias(true);
+            paint.setColor(Color.GREEN);
+            int canvasWid = canvas.getWidth();
+            int canvasHeight = canvas.getHeight();
 
+            float yScale = (float) canvas.getHeight()/range;
+            float xScale = (float) 0.130;
+
+            for (int i = 0; i < piece.length; i ++) {
+                canvas.drawLine(paddingLeft + xScale * i * rateX/2, paddingBottom, paddingLeft + xScale * i * rateX/2, paddingBottom - piece[i] * yScale, paint);
+            }
+            surfaceView.getHolder().unlockCanvasAndPost(canvas);
+        }
     }
 
     /**
      * do FFT for musicData, save into fftData
      */
-    int commit;
     public void FFT(){
-        int N = musicData.length;
+        int N = to2N( musicData.length );
 
+        Complex xin[] = new Complex[N];
+        float pi = (float) 3.1415926;
+        int f,m,N2,nm,i,k,j,L;//L:运算级数
+        float fftScale = (float) 0.05;
+        float p;
+        int e2,le,B,ip;
+        Complex w = new Complex();
+        Complex t ;
+        N2 = N / 2;//每一级中蝶形的个数,同时也代表m位二进制数最高位的十进制权值
+        f = N;//f是为了求流程的级数而设立的
+        for(m = 1; (f = f / 2) != 1; m++);                             //得到流程图的共几级
+        nm = N - 2;
+        j = N2;
+
+        for( i=0;i<N;i++ )
+            xin[i] = new Complex((double)musicData[i]);
+
+        //rearrange
+
+        for(i = 1; i <= nm; i++)
+        {
+            if(i < j)//防止重复交换
+            {
+                t = xin[j];
+                xin[j] = xin[i];
+                xin[i] = t;
+            }
+            k = N2;
+            while(j >= k)
+            {
+                j = j - k;
+                k = k / 2;
+            }
+            j = j + k;
+        }
+        for(L=1; L<=m; L++)                                    //从第1级到第m级
+        {
+            e2 = (int) Math.pow(2, L);
+            //e2=(int)2.pow(L);
+            le=e2+1;
+            B=e2/2;
+            for(j=0;j<B;j++)                                    //j从0到2^(L-1)-1
+            {
+                p=2*pi/e2;
+                w.real = Math.cos(p * j);
+                //w.real=Math.cos((double)p*j);                                   //系数W
+                w.image = Math.sin(p*j) * -1;
+                //w.imag = -sin(p*j);
+                for(i=j;i<N;i=i+e2)                                //计算具有相同系数的数据
+                {
+                    ip=i+B;                                           //对应蝶形的数据间隔为2^(L-1)
+                    t=xin[ip].cc(w);
+                    xin[ip] = xin[i].cut(t);
+                    xin[i] = xin[i].sum(t);
+                }
+            }
+        }
+        fftData = new int[xin.length];
+        for( i=0;i<xin.length-1;i++ ){
+            xin[i].real *= fftScale;
+            xin[i].image *= fftScale;
+
+            try {
+                fftData[i] = xin[i].getIntValue();
+                Log.d("err",i+"");
+            }
+            catch (Exception e){
+                Log.d("err",e.getMessage());
+            }
+
+        }
+        Log.d("err",fftData.length+"");
     }
-
+    /**
+     * assist function :
+     * upper2N
+     */
+    public int to2N( int n ){
+        int i = 1;
+        while( i<n ){
+            i = i<<1;
+        }
+        i/=2;
+        return i;
+    }
 
 
 }
