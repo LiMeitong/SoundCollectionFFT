@@ -291,9 +291,9 @@ public class ProcessRecord{
         int e2,le,B,ip;
         Complex w = new Complex();
         Complex t ;
-        N2 = N / 2;//每一级中蝶形的个数,同时也代表m位二进制数最高位的十进制权值
-        f = N;//f是为了求流程的级数而设立的
-        for(m = 1; (f = f / 2) != 1; m++);                             //得到流程图的共几级
+        N2 = N / 2;
+        f = N;
+        for(m = 1; (f = f / 2) != 1; m++);
         nm = N - 2;
         j = N2;
 
@@ -318,22 +318,20 @@ public class ProcessRecord{
             }
             j = j + k;
         }
-        for(L=1; L<=m; L++)                                    //从第1级到第m级
+        for(L=1; L<=m; L++)
         {
             e2 = (int) Math.pow(2, L);
-            //e2=(int)2.pow(L);
-            le=e2+1;
             B=e2/2;
-            for(j=0;j<B;j++)                                    //j从0到2^(L-1)-1
+            for(j=0;j<B;j++)
             {
                 p=2*pi/e2;
                 w.real = Math.cos(p * j);
-                //w.real=Math.cos((double)p*j);                                   //系数W
+                //w.real=Math.cos((double)p*j);
                 w.image = Math.sin(p*j) * -1;
                 //w.imag = -sin(p*j);
-                for(i=j;i<N;i=i+e2)                                //计算具有相同系数的数据
+                for(i=j;i<N;i=i+e2)              // with same index
                 {
-                    ip=i+B;                                           //对应蝶形的数据间隔为2^(L-1)
+                    ip=i+B;                                           //interlude 2^(L-1)
                     t=xin[ip].cc(w);
                     xin[ip] = xin[i].cut(t);
                     xin[i] = xin[i].sum(t);
