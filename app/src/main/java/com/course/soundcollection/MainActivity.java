@@ -94,6 +94,10 @@ public class MainActivity extends ActionBarActivity {
                 点击开始录音
                  */
                 if (ctrlRecord.getText().toString().equals("开始录音")) {
+
+                    processRecord = new ProcessRecord();
+                    processRecord.setSfv(timeSurface,freqSruface);
+
                     cntDown = new countDown();
                     //begin counting down, count seconds immediately;
                     ctrlRecord.setText("停止录音");
